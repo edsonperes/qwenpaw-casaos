@@ -73,14 +73,18 @@ RUN python3 -c "import os, whisper; whisper.load_model(os.environ.get('QWENPAW_W
 #    (b) conserta a selecao de idioma pt-BR no console (bug do i18next com
 #        codigos de regiao; apenas avisa se o upstream ja tiver corrigido);
 #    (c) transcreve voz/audio do Telegram para texto no canal (senao o
-#        agente repetia a ultima resposta; falha o build se o alvo sumir).
+#        agente repetia a ultima resposta; falha o build se o alvo sumir);
+#    (d) esconde a opcao 'Whisper API' do console (usamos so o local;
+#        nao-fatal — so um ajuste de UI).
 # -----------------------------------------------------------------------------
 COPY scripts/patch_whisper_model.py /opt/qwenpaw-casaos/patch_whisper_model.py
 COPY scripts/patch_console_i18n.py /opt/qwenpaw-casaos/patch_console_i18n.py
 COPY scripts/patch_audio_pipeline.py /opt/qwenpaw-casaos/patch_audio_pipeline.py
+COPY scripts/patch_console_hide_whisperapi.py /opt/qwenpaw-casaos/patch_console_hide_whisperapi.py
 RUN python3 /opt/qwenpaw-casaos/patch_whisper_model.py \
  && python3 /opt/qwenpaw-casaos/patch_console_i18n.py \
- && python3 /opt/qwenpaw-casaos/patch_audio_pipeline.py
+ && python3 /opt/qwenpaw-casaos/patch_audio_pipeline.py \
+ && python3 /opt/qwenpaw-casaos/patch_console_hide_whisperapi.py
 
 # -----------------------------------------------------------------------------
 # 5) Semeador de config + entrypoint customizado (camadas leves, no fim).

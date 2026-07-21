@@ -115,6 +115,7 @@ scripts/
   patch_whisper_model.py modelo do Whisper via env (com guarda anti-quebra)
   patch_console_i18n.py  corrige seleção de idioma pt-BR no console
   patch_audio_pipeline.py transcreve voz do Telegram → texto (anti-repetição)
+  patch_console_hide_whisperapi.py esconde a opção 'Whisper API' (só usamos local)
   seed_config.py         semeia pt-BR + transcrição local + anti-duplicação (idempotente)
   custom-entrypoint.sh   init → seed → entrypoint oficial
   update.sh              atualiza o deploy
