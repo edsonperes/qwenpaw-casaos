@@ -75,16 +75,21 @@ RUN python3 -c "import os, whisper; whisper.load_model(os.environ.get('QWENPAW_W
 #    (c) transcreve voz/audio do Telegram para texto no canal (senao o
 #        agente repetia a ultima resposta; falha o build se o alvo sumir);
 #    (d) esconde a opcao 'Whisper API' do console (usamos so o local;
-#        nao-fatal — so um ajuste de UI).
+#        nao-fatal — so um ajuste de UI);
+#    (e) fixa o idioma na transcricao local (autodetect erra em audio
+#        curto; deriva de QWENPAW_DEFAULT_LANGUAGE, override por
+#        QWENPAW_WHISPER_LANGUAGE).
 # -----------------------------------------------------------------------------
 COPY scripts/patch_whisper_model.py /opt/qwenpaw-casaos/patch_whisper_model.py
 COPY scripts/patch_console_i18n.py /opt/qwenpaw-casaos/patch_console_i18n.py
 COPY scripts/patch_audio_pipeline.py /opt/qwenpaw-casaos/patch_audio_pipeline.py
 COPY scripts/patch_console_hide_whisperapi.py /opt/qwenpaw-casaos/patch_console_hide_whisperapi.py
+COPY scripts/patch_whisper_language.py /opt/qwenpaw-casaos/patch_whisper_language.py
 RUN python3 /opt/qwenpaw-casaos/patch_whisper_model.py \
  && python3 /opt/qwenpaw-casaos/patch_console_i18n.py \
  && python3 /opt/qwenpaw-casaos/patch_audio_pipeline.py \
- && python3 /opt/qwenpaw-casaos/patch_console_hide_whisperapi.py
+ && python3 /opt/qwenpaw-casaos/patch_console_hide_whisperapi.py \
+ && python3 /opt/qwenpaw-casaos/patch_whisper_language.py
 
 # -----------------------------------------------------------------------------
 # 5) Semeador de config + entrypoint customizado (camadas leves, no fim).
