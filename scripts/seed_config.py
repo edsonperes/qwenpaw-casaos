@@ -7,10 +7,10 @@ Aplica os nossos padroes ao ``config.json`` que o ``qwenpaw init`` gera:
   * ``agents.audio_mode``                -> "auto" (transcreve audio recebido)
   * ``agents.transcription_provider_type`` -> QWENPAW_TRANSCRIPTION_TYPE
                                             (default local_whisper)
-  * loop.rubric.enabled (por agente)     -> False (evita RESPOSTA
-                                            DUPLICADA no Telegram; roda
-                                            todo boot, opt-out via
-                                            QWENPAW_ALLOW_TEXT_REPROMPT)
+  * loop.rubric.enabled + light_context_config.strategy (por agente) ->
+                                            evita RESPOSTA DUPLICADA no chat
+                                            (roda todo boot; ver
+                                            enforce_single_reply)
 
 Principios:
   * NAO recompila o QwenPaw. So mexe em campos publicos do config.json.
@@ -59,19 +59,37 @@ def _find_loop_blocks(obj):
             yield from _find_loop_blocks(value)
 
 
+def _find_light_context_blocks(obj):
+    """Gera os dicts ``light_context_config`` (tem a chave ``strategy``)."""
+    if isinstance(obj, dict):
+        lc = obj.get("light_context_config")
+        if isinstance(lc, dict) and "strategy" in lc:
+            yield lc
+        for value in obj.values():
+            yield from _find_light_context_blocks(value)
+    elif isinstance(obj, list):
+        for value in obj:
+            yield from _find_light_context_blocks(value)
+
+
 def enforce_single_reply(working_dir: Path) -> None:
-    """Desliga o gate ``rubric`` (re-prompt em resposta so-texto) em cada agente.
+    """Ajusta cada agente para respostas LIMPAS e UNICAS no chat. Roda a CADA
+    boot (nao depende do marcador) e nunca derruba o boot.
 
-    Esse gate reenvia o agente depois de uma resposta de texto -> no Telegram
-    isso vira mensagem DUPLICADA. O default do proprio QwenPaw (config.json
-    global) ja vem desligado, mas alguns ``agent.json`` chegam com ele ligado.
-    Alinhamos aqui, a CADA boot (nao e travado pelo marcador de seed).
-
-    Opt-out: ``QWENPAW_ALLOW_TEXT_REPROMPT=true``.
+      * ``loop.rubric.enabled`` -> False. Esse gate ('re-prompt em resposta
+        so-texto') reenvia o agente e DUPLICA no Telegram.
+        Opt-out: ``QWENPAW_ALLOW_TEXT_REPROMPT=true``.
+      * ``light_context_config.strategy`` -> ``QWENPAW_CONTEXT_STRATEGY``
+        (default ``native``). A estrategia ``scroll`` pede uma 'headline' em
+        toda resposta; modelos pequenos (ex.: nemotron-nano) se confundem e
+        REPETEM o texto dentro da mesma mensagem (e a headline ``<!-- -->``
+        vaza). ``native`` remove isso. Use ``QWENPAW_CONTEXT_STRATEGY=scroll``
+        para manter o scroll (ex.: com um modelo maior) ou ``=keep`` para nao
+        mexer na estrategia.
     """
-    if _truthy(os.environ.get("QWENPAW_ALLOW_TEXT_REPROMPT")):
-        _log("QWENPAW_ALLOW_TEXT_REPROMPT=true; mantendo o gate 'rubric' como esta.")
-        return
+    keep_rubric = _truthy(os.environ.get("QWENPAW_ALLOW_TEXT_REPROMPT"))
+    strategy = os.environ.get("QWENPAW_CONTEXT_STRATEGY", "native").strip().lower()
+    force_strategy = strategy not in ("", "keep", "respect")
 
     workspaces = working_dir / "workspaces"
     for agent_file in sorted(workspaces.glob("*/agent.json")):
@@ -82,11 +100,25 @@ def enforce_single_reply(working_dir: Path) -> None:
             continue
 
         changed = False
-        for loop in _find_loop_blocks(cfg):
-            rubric = loop.get("rubric")
-            if isinstance(rubric, dict) and rubric.get("enabled") is not False:
-                rubric["enabled"] = False
-                changed = True
+        notes: list[str] = []
+
+        if not keep_rubric:
+            for loop in _find_loop_blocks(cfg):
+                rubric = loop.get("rubric")
+                if isinstance(rubric, dict) and rubric.get("enabled") is not False:
+                    rubric["enabled"] = False
+                    changed = True
+                    if "rubric-off" not in notes:
+                        notes.append("rubric-off")
+
+        if force_strategy:
+            for lc in _find_light_context_blocks(cfg):
+                if lc.get("strategy") != strategy:
+                    lc["strategy"] = strategy
+                    changed = True
+                    tag = f"strategy={strategy}"
+                    if tag not in notes:
+                        notes.append(tag)
 
         if not changed:
             continue
@@ -96,7 +128,7 @@ def enforce_single_reply(working_dir: Path) -> None:
                 json.dumps(cfg, indent=2, ensure_ascii=False) + "\n",
             )
             _log(
-                "rubric desligado (anti-duplicacao) em "
+                f"ajustado ({', '.join(notes)}) em "
                 f"{agent_file.parent.name}/agent.json",
             )
         except Exception as exc:  # noqa: BLE001
