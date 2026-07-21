@@ -1,0 +1,13 @@
+# Segredos e ambiente local
+.env
+*.env
+!.env.example
+
+# CAs de proxy/firewall corporativo (especificos de cada ambiente de build).
+# Mantemos a pasta certs/ versionada, mas NUNCA os certificados em si.
+certs/*
+!certs/.gitkeep
+
+# Sistema
+.DS_Store
+*.log

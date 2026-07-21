@@ -1,0 +1,33 @@
+# =============================================================================
+# Teste LOCAL do qwenpaw-casaos (nao usar em producao).
+# Sobe a imagem buildada localmente (qwenpaw-casaos:local) com credenciais de
+# teste e volumes nomeados descartaveis. Usado para validar tudo antes do deploy.
+#
+#   docker compose -f docker-compose.test.yml up -d
+# =============================================================================
+name: qwenpaw-casaos-test
+
+services:
+  qwenpaw:
+    image: qwenpaw-casaos:local
+    container_name: qwenpaw-casaos-test
+    init: true
+    ports:
+      - "127.0.0.1:8088:8088"
+    environment:
+      QWENPAW_AUTH_ENABLED: "true"
+      QWENPAW_AUTH_USERNAME: "admin"
+      QWENPAW_AUTH_PASSWORD: "test-pass-123"
+      QWENPAW_DEFAULT_LANGUAGE: "pt-BR"
+      QWENPAW_TRANSCRIPTION_TYPE: "local_whisper"
+      QWENPAW_WHISPER_MODEL: "base"
+      QWENPAW_DISABLED_CHANNELS: "imessage"
+    volumes:
+      - test-data:/app/working
+      - test-secret:/app/working.secret
+      - test-backups:/app/working.backups
+
+volumes:
+  test-data:
+  test-secret:
+  test-backups:

@@ -1,0 +1,110 @@
+# =============================================================================
+# qwenpaw-casaos — arquivo de deploy p/ CasaOS (importavel na App Store /
+# "Custom Install"). Tambem roda com `docker compose up -d` em qualquer host.
+#
+# ANTES DE SUBIR:
+#   * Troque edsonperes pelo seu usuario/org do GitHub (dono da imagem).
+#   * Troque a senha em QWENPAW_AUTH_PASSWORD (vai ficar exposto publicamente!).
+#   * Exponha SEMPRE atras de HTTPS (reverse proxy). Veja o README.
+# =============================================================================
+name: qwenpaw-casaos
+
+services:
+  qwenpaw:
+    image: ghcr.io/edsonperes/qwenpaw-casaos:latest
+    container_name: qwenpaw-casaos
+    restart: unless-stopped
+    init: true
+    ports:
+      - target: 8088
+        published: "8088"
+        protocol: tcp
+    environment:
+      # --- Autenticacao (OBRIGATORIA em servidor publico) ---
+      QWENPAW_AUTH_ENABLED: "true"
+      QWENPAW_AUTH_USERNAME: "admin"
+      QWENPAW_AUTH_PASSWORD: "troque-esta-senha"
+      # --- Personalizacoes qwenpaw-casaos ---
+      QWENPAW_DEFAULT_LANGUAGE: "pt-BR"
+      QWENPAW_TRANSCRIPTION_TYPE: "local_whisper"
+      QWENPAW_WHISPER_MODEL: "base"
+      # Desabilita canais que nao usamos (iMessage exige macOS).
+      QWENPAW_DISABLED_CHANNELS: "imessage"
+    volumes:
+      - type: bind
+        source: /DATA/AppData/qwenpaw-casaos/working
+        target: /app/working
+      - type: bind
+        source: /DATA/AppData/qwenpaw-casaos/working.secret
+        target: /app/working.secret
+      - type: bind
+        source: /DATA/AppData/qwenpaw-casaos/working.backups
+        target: /app/working.backups
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8088/', timeout=5).status < 500 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+    # -------------------------------------------------------------------------
+    # Metadados da App Store do CasaOS (ignorados pelo docker compose puro).
+    # -------------------------------------------------------------------------
+    x-casaos:
+      envs:
+        - container: QWENPAW_AUTH_USERNAME
+          description:
+            en_us: "Console login username"
+            pt_br: "Usuario de login do console"
+        - container: QWENPAW_AUTH_PASSWORD
+          description:
+            en_us: "Console login password — CHANGE THIS"
+            pt_br: "Senha de login do console — TROQUE ISTO"
+        - container: QWENPAW_DEFAULT_LANGUAGE
+          description:
+            en_us: "Default assistant/UI language"
+            pt_br: "Idioma padrao do assistente/interface"
+        - container: QWENPAW_WHISPER_MODEL
+          description:
+            en_us: "Local Whisper model (base/small/medium)"
+            pt_br: "Modelo do Whisper local (base/small/medium)"
+      ports:
+        - container: "8088"
+          description:
+            en_us: "QwenPaw web console"
+            pt_br: "Console web do QwenPaw"
+      volumes:
+        - container: /app/working
+          description:
+            en_us: "Data, config, sessions and skills"
+            pt_br: "Dados, configuracao, sessoes e skills"
+        - container: /app/working.secret
+          description:
+            en_us: "Encrypted secrets (API keys, tokens)"
+            pt_br: "Segredos criptografados (chaves de API, tokens)"
+        - container: /app/working.backups
+          description:
+            en_us: "Automatic backups"
+            pt_br: "Backups automaticos"
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: qwenpaw
+  author: Edson
+  developer: agentscope-ai
+  icon: https://raw.githubusercontent.com/agentscope-ai/QwenPaw/main/console/public/qwenpaw.png
+  title:
+    en_us: QwenPaw
+    pt_br: QwenPaw
+  tagline:
+    en_us: "Your personal AI assistant — runs on your own server."
+    pt_br: "Seu assistente pessoal de IA — roda no seu proprio servidor."
+  description:
+    en_us: "QwenPaw personal AI assistant, customized for CasaOS: Portuguese by default, login required, and local audio transcription (Whisper) for Telegram voice messages. Bring your own OpenAI-compatible provider."
+    pt_br: "Assistente pessoal de IA QwenPaw, personalizado para CasaOS: portugues por padrao, login obrigatorio e transcricao de audio local (Whisper) para mensagens de voz do Telegram. Use seu proprio provedor compativel com OpenAI."
+  category: AI
+  port_map: "8088"
+  scheme: http
+  index: /
