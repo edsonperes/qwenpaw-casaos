@@ -21,7 +21,7 @@ on:
         default: "agentscope/qwenpaw:latest"
       whisper_model:
         description: "Modelo do Whisper embutido (base/small/medium)"
-        default: "base"
+        default: "small"
   schedule:
     - cron: "0 6 * * 1"
 
@@ -70,6 +70,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ github.event.inputs.base_image || 'agentscope/qwenpaw:latest' }}
-            WHISPER_MODEL=${{ github.event.inputs.whisper_model || 'base' }}
+            WHISPER_MODEL=${{ github.event.inputs.whisper_model || 'small' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

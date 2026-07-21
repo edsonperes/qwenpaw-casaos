@@ -21,8 +21,8 @@ ARG BASE_IMAGE=agentscope/qwenpaw:latest
 FROM ${BASE_IMAGE}
 
 # Modelo do Whisper embutido na imagem (baixado no build). Trocavel em runtime
-# por -e QWENPAW_WHISPER_MODEL=small (o novo modelo baixa no primeiro uso).
-ARG WHISPER_MODEL=base
+# por -e QWENPAW_WHISPER_MODEL=medium/base (o novo modelo baixa no 1o uso).
+ARG WHISPER_MODEL=small
 
 # venv onde o QwenPaw ja esta instalado (imagem oficial).
 ENV PATH="/app/venv/bin:${PATH}"

@@ -27,7 +27,7 @@ services:
       # --- Personalizacoes qwenpaw-casaos ---
       QWENPAW_DEFAULT_LANGUAGE: "pt-BR"
       QWENPAW_TRANSCRIPTION_TYPE: "local_whisper"
-      QWENPAW_WHISPER_MODEL: "base"
+      QWENPAW_WHISPER_MODEL: "small"
       # Desabilita canais que nao usamos (iMessage exige macOS).
       QWENPAW_DISABLED_CHANNELS: "imessage"
     volumes:
