@@ -13,7 +13,7 @@ services:
   qwenpaw:
     image: ghcr.io/edsonperes/qwenpaw-casaos:latest
     container_name: qwenpaw-casaos
-    restart: unless-stopped
+    restart: always
     init: true
     ports:
       - target: 8088
