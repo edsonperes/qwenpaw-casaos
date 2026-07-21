@@ -78,18 +78,22 @@ RUN python3 -c "import os, whisper; whisper.load_model(os.environ.get('QWENPAW_W
 #        nao-fatal — so um ajuste de UI);
 #    (e) fixa o idioma na transcricao local (autodetect erra em audio
 #        curto; deriva de QWENPAW_DEFAULT_LANGUAGE, override por
-#        QWENPAW_WHISPER_LANGUAGE).
+#        QWENPAW_WHISPER_LANGUAGE);
+#    (f) esconde a 'headline' do scroll que vaza no chat quando o modelo
+#        a emite sem os colchetes (nao-fatal p/ a memoria; so exibicao).
 # -----------------------------------------------------------------------------
 COPY scripts/patch_whisper_model.py /opt/qwenpaw-casaos/patch_whisper_model.py
 COPY scripts/patch_console_i18n.py /opt/qwenpaw-casaos/patch_console_i18n.py
 COPY scripts/patch_audio_pipeline.py /opt/qwenpaw-casaos/patch_audio_pipeline.py
 COPY scripts/patch_console_hide_whisperapi.py /opt/qwenpaw-casaos/patch_console_hide_whisperapi.py
 COPY scripts/patch_whisper_language.py /opt/qwenpaw-casaos/patch_whisper_language.py
+COPY scripts/patch_scroll_headline_strip.py /opt/qwenpaw-casaos/patch_scroll_headline_strip.py
 RUN python3 /opt/qwenpaw-casaos/patch_whisper_model.py \
  && python3 /opt/qwenpaw-casaos/patch_console_i18n.py \
  && python3 /opt/qwenpaw-casaos/patch_audio_pipeline.py \
  && python3 /opt/qwenpaw-casaos/patch_console_hide_whisperapi.py \
- && python3 /opt/qwenpaw-casaos/patch_whisper_language.py
+ && python3 /opt/qwenpaw-casaos/patch_whisper_language.py \
+ && python3 /opt/qwenpaw-casaos/patch_scroll_headline_strip.py
 
 # -----------------------------------------------------------------------------
 # 5) Semeador de config + entrypoint customizado (camadas leves, no fim).
