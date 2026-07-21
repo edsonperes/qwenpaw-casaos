@@ -7,6 +7,10 @@ Aplica os nossos padroes ao ``config.json`` que o ``qwenpaw init`` gera:
   * ``agents.audio_mode``                -> "auto" (transcreve audio recebido)
   * ``agents.transcription_provider_type`` -> QWENPAW_TRANSCRIPTION_TYPE
                                             (default local_whisper)
+  * loop.rubric.enabled (por agente)     -> False (evita RESPOSTA
+                                            DUPLICADA no Telegram; roda
+                                            todo boot, opt-out via
+                                            QWENPAW_ALLOW_TEXT_REPROMPT)
 
 Principios:
   * NAO recompila o QwenPaw. So mexe em campos publicos do config.json.
@@ -43,12 +47,72 @@ def _atomic_write(path: Path, data: str) -> None:
     os.replace(tmp, path)  # atomico no mesmo filesystem
 
 
+def _find_loop_blocks(obj):
+    """Gera os dicts que parecem um bloco de loop-gates (tem rubric + iteration)."""
+    if isinstance(obj, dict):
+        if isinstance(obj.get("rubric"), dict) and "iteration" in obj:
+            yield obj
+        for value in obj.values():
+            yield from _find_loop_blocks(value)
+    elif isinstance(obj, list):
+        for value in obj:
+            yield from _find_loop_blocks(value)
+
+
+def enforce_single_reply(working_dir: Path) -> None:
+    """Desliga o gate ``rubric`` (re-prompt em resposta so-texto) em cada agente.
+
+    Esse gate reenvia o agente depois de uma resposta de texto -> no Telegram
+    isso vira mensagem DUPLICADA. O default do proprio QwenPaw (config.json
+    global) ja vem desligado, mas alguns ``agent.json`` chegam com ele ligado.
+    Alinhamos aqui, a CADA boot (nao e travado pelo marcador de seed).
+
+    Opt-out: ``QWENPAW_ALLOW_TEXT_REPROMPT=true``.
+    """
+    if _truthy(os.environ.get("QWENPAW_ALLOW_TEXT_REPROMPT")):
+        _log("QWENPAW_ALLOW_TEXT_REPROMPT=true; mantendo o gate 'rubric' como esta.")
+        return
+
+    workspaces = working_dir / "workspaces"
+    for agent_file in sorted(workspaces.glob("*/agent.json")):
+        try:
+            cfg = json.loads(agent_file.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 - nunca derrubar o boot
+            _log(f"AVISO: nao consegui ler {agent_file} ({exc}); pulando.")
+            continue
+
+        changed = False
+        for loop in _find_loop_blocks(cfg):
+            rubric = loop.get("rubric")
+            if isinstance(rubric, dict) and rubric.get("enabled") is not False:
+                rubric["enabled"] = False
+                changed = True
+
+        if not changed:
+            continue
+        try:
+            _atomic_write(
+                agent_file,
+                json.dumps(cfg, indent=2, ensure_ascii=False) + "\n",
+            )
+            _log(
+                "rubric desligado (anti-duplicacao) em "
+                f"{agent_file.parent.name}/agent.json",
+            )
+        except Exception as exc:  # noqa: BLE001
+            _log(f"AVISO: falha ao gravar {agent_file} ({exc}).")
+
+
 def main() -> int:
     language = os.environ.get("QWENPAW_DEFAULT_LANGUAGE", "pt-BR").strip()
     transcription = os.environ.get(
         "QWENPAW_TRANSCRIPTION_TYPE", "local_whisper",
     ).strip()
     force = _truthy(os.environ.get("QWENPAW_SEED_FORCE"))
+
+    # Anti-duplicacao: roda SEMPRE (mesmo apos ja semeado), pois nao depende
+    # do marcador — desliga o gate 'rubric' que duplica respostas no Telegram.
+    enforce_single_reply(WORKING_DIR)
 
     if not CONFIG_PATH.exists():
         _log(f"config.json ainda nao existe em {CONFIG_PATH}; nada a fazer.")

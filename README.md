@@ -113,12 +113,33 @@ docker-compose.test.yml  teste local
 .env.example             modelo de variáveis
 scripts/
   patch_whisper_model.py modelo do Whisper via env (com guarda anti-quebra)
-  seed_config.py         semeia pt-BR + transcrição local (idempotente)
+  patch_console_i18n.py  corrige seleção de idioma pt-BR no console
+  patch_audio_pipeline.py transcreve voz do Telegram → texto (anti-repetição)
+  seed_config.py         semeia pt-BR + transcrição local + anti-duplicação (idempotente)
   custom-entrypoint.sh   init → seed → entrypoint oficial
   update.sh              atualiza o deploy
 casaos/                  guia de importação no CasaOS
 .github/workflows/       build & push para o GHCR
 ```
+
+## Correções incluídas
+
+Além de empacotar o QwenPaw, esta distribuição corrige dois problemas via
+patches cirúrgicos (aplicados no build; falham de propósito se o upstream
+mudar o alvo, para você notar na hora de atualizar):
+
+- **Mensagem duplicada no Telegram.** O gate `rubric` ("re-prompt em resposta
+  só-texto") reenviava o agente após cada resposta, gerando uma segunda
+  mensagem. O `seed_config.py` desliga `loop.rubric.enabled` em cada agente a
+  todo boot. Opt-out: `QWENPAW_ALLOW_TEXT_REPROMPT=true`.
+- **Áudio/voz não respondido (repetia a última resposta).** A voz era baixada
+  mas nunca transcrita, então o modelo de texto não recebia as palavras.
+  `patch_audio_pipeline.py` transcreve a voz no canal do Telegram (Whisper
+  local, respeitando `QWENPAW_TRANSCRIPTION_TYPE`) e entrega o texto ao agente.
+
+> Dica de operação: rode **apenas uma** instância por bot do Telegram. Dois
+> processos/agentes lendo o mesmo token causam conflito de `getUpdates` (409)
+> e mensagens duplicadas.
 
 ## Créditos
 
